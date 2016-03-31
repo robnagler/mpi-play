@@ -4,53 +4,24 @@
 #
 : slaves=${slaves:=4}
 : jobs=${jobs:=3}
+: mpi=${mpi:=1}
 export affinity=${affinity:=0}
 num_cores=$(( $slaves * $jobs ))
 
 if (( $(nproc) < $num_cores )); then
     echo '$slaves * $jobs < $(nproc)' 1>&2
-    echo "usage: jobs=N slaves=M bash $(basename $0)" 1>&2
+    echo "usage: mpi=0/1 affinity=0/1 jobs=N slaves=M bash $(basename $0)" 1>&2
     exit 1
 fi
 
-cat > pi.py <<'EOF'
-#!/usr/bin/env python
-import os
-
-
-def set_core():
-    from mpi4py import MPI
-    import os
-    import subprocess
-    import sys
-
-    comm = MPI.COMM_WORLD
-    rank = comm.Get_rank()
-    base = int(sys.argv[1])
-    core = base + rank
-    subprocess.check_call(['/bin/taskset', '-cp', str(core), str(os.getpid())])
-
-
-def compute_pi():
-    from decimal import Decimal, getcontext
-
-    getcontext().prec=1500
-    sum(
-        1/Decimal(16)**k *
-        (Decimal(4)/(8*k+1) -
-         Decimal(2)/(8*k+4) -
-         Decimal(1)/(8*k+5) -
-         Decimal(1)/(8*k+6)) for k in range(1500))
-
-
-if int(os.environ.get('affinity', 0)):
-    set_core()
-compute_pi()
-EOF
-
 master_pids=()
 for i in $(seq $jobs); do
-    mpiexec -n $slaves python pi.py "$(( ($i - 1) * $slaves ))" < /dev/null >& /dev/null &
+    base=$(( ($i - 1) * $slaves ))
+    if (( $mpi )); then
+        mpiexec -n "$slaves" python pi.py "$base" < /dev/null >& /dev/null &
+    else
+        python pi.py "$base" "$slaves" &
+    fi
     master_pids+=( $! )
     sleep 1
 done
@@ -66,7 +37,7 @@ if (( ${#cores_in_use[@]} == $num_cores )); then
 else
     "${ps[@]}" | head -1
     ps_grep | sort -n
-    echo "FAIL: ${#cores[@]}"
+    echo "FAIL: Only ${#cores_in_use[@]} in use (expecting $num_cores)"
 fi
 kill "${master_pids[@]}" >& /dev/null
-wait
+wait >& /dev/null
