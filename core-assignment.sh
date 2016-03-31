@@ -5,6 +5,7 @@
 : slaves=${slaves:=4}
 : jobs=${jobs:=3}
 : mpi=${mpi:=1}
+: delay=${delay:=1}
 export affinity=${affinity:=0}
 num_cores=$(( $slaves * $jobs ))
 
@@ -23,7 +24,7 @@ for i in $(seq $jobs); do
         python pi.py "$base" "$slaves" &
     fi
     master_pids+=( $! )
-    sleep 1
+    sleep "$delay"
 done
 
 ps=( ps -o psr,ppid,pid,args ax )
