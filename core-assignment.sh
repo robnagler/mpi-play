@@ -10,7 +10,7 @@ export affinity=${affinity:=0}
 num_cores=$(( $slaves * $jobs ))
 
 if (( $(nproc) < $num_cores )); then
-    echo '$slaves * $jobs < $(nproc)' 1>&2
+    echo 'ERROR: $slaves * $jobs < $(nproc)' 1>&2
     echo "usage: mpi=0/1 affinity=0/1 jobs=N slaves=M bash $(basename $0)" 1>&2
     exit 1
 fi
@@ -29,7 +29,7 @@ done
 
 ps=( ps -o psr,ppid,pid,args ax )
 ps_grep() {
-    "${ps[@]}" | grep 'python pi.py' | egrep -v 'mpiexec|grep'
+    "${ps[@]}" | egrep '^ *[0-9]+ *[0-9]+ *[0-9]+ *python pi.py'
 }
 
 cores_in_use=( $(ps_grep | colrm 4 | sort -u) )
