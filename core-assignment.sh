@@ -18,7 +18,7 @@ master_pids=()
 for i in $(seq $jobs); do
     base=$(( ($i - 1) * $slaves ))
     if (( $mpi )); then
-        mpiexec -n "$slaves" python pi.py "$base" < /dev/null >& /dev/null &
+        mpiexec --bind-to none -n "$slaves" python pi.py "$base" < /dev/null >& /dev/null &
     else
         python pi.py "$base" "$slaves" &
     fi
