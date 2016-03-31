@@ -6,6 +6,7 @@
 : jobs=${jobs:=3}
 : mpi=${mpi:=1}
 : delay=${delay:=1}
+: debug=${debug:=0}
 export affinity=${affinity:=0}
 num_cores=$(( $slaves * $jobs ))
 
@@ -15,13 +16,18 @@ if (( $(nproc) < $num_cores )); then
     exit 1
 fi
 
+output='< /dev/null >& /dev/null'
+if (( $debug )); then
+    output=
+fi
+
 master_pids=()
 for i in $(seq $jobs); do
     base=$(( ($i - 1) * $slaves ))
     if (( $mpi )); then
-        mpiexec --bind-to none -n "$slaves" python pi.py "$base" < /dev/null >& /dev/null &
+        eval mpiexec --bind-to none -n "$slaves" python pi.py "$base" $output &
     else
-        python pi.py "$base" "$slaves" &
+        eval python pi.py "$base" "$slaves" $output &
     fi
     master_pids+=( $! )
     sleep "$delay"
@@ -40,5 +46,5 @@ else
     ps_grep | sort -n
     echo "FAIL: Only ${#cores_in_use[@]} in use (expecting $num_cores)"
 fi
-kill "${master_pids[@]}" >& /dev/null
-wait >& /dev/null
+eval kill "${master_pids[@]}" $output
+eval wait $output
